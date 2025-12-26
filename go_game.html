@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1132946-FinalTerm
+    </title>
+    <style>
+        :root {
+            /* 配色方案：深空灰 + 霓虹紅 + 質感金 */
+            --bg-gradient: radial-gradient(circle at center, #2b323c 0%, #101012 100%);
+            --board-color: #e3b05b;
+            --panel-bg: rgba(30, 30, 35, 0.7);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --accent-color: #ff4757; /* 瘋狗紅 */
+            --accent-glow: rgba(255, 71, 87, 0.4);
+        }
+
+        body {
+            font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* 防止捲動 */
+        }
+
+        /* 標題區 */
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, #fff 30%, var(--accent-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-top: 5px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .highlight { color: var(--accent-color); font-weight: bold; }
+
+        /* 主容器 */
+        .game-container {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            animation: fadeIn 1s ease-out;
+        }
+
+        /* 棋盤區 (外框) */
+        .board-wrapper {
+            position: relative;
+            padding: 15px;
+            background: #4a3c26; /* 深木頭色底座 */
+            border-radius: 8px;
+            box-shadow: 
+                0 20px 50px rgba(0,0,0,0.8),
+                inset 0 0 15px rgba(0,0,0,0.5);
+            border: 1px solid #6b5638;
+        }
+
+        canvas {
+            display: block;
+            border-radius: 2px;
+            cursor: pointer;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+        }
+        
+        canvas.marking-mode { cursor: crosshair; }
+
+        /* 右側資訊面板 (玻璃擬態) */
+        .info-panel {
+            width: 280px;
+            padding: 30px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(15px); /* 磨砂玻璃 */
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 狀態列 */
+        .status-box {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--board-color);
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* 殺敵數顯示 */
+        .captures {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .capture-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 10px;
+            width: 45%;
+        }
+        .capture-count {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            margin-top: 5px;
+        }
+
+        /* 按鈕群組 */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        button:hover::before { left: 100%; }
+        button:active { transform: scale(0.98); }
+
+        .btn-pass { 
+            background: linear-gradient(135deg, #f39c12, #d35400); 
+            color: white;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+        }
+        .btn-calc { 
+            background: linear-gradient(135deg, #2ecc71, #27ae60); 
+            color: white;
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
+        }
+        .btn-confirm {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+            display: none;
+            box-shadow: 0 4px 15px rgba(155, 89, 182, 0.4);
+        }
+        .btn-reset { 
+            background: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            margin-top: 10px;
+        }
+        .btn-reset:hover {
+            background: var(--accent-color);
+            color: white;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        /* 指南文字 */
+        .guide-text {
+            font-size: 0.8rem;
+            color: #888;
+            line-height: 1.6;
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        /* 彈窗樣式 */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .modal.show { opacity: 1; }
+
+        .modal-content {
+            background: #1a1a1d;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 40px;
+            border-radius: 20px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+        .modal.show .modal-content { transform: translateY(0); }
+
+        .modal h2 { margin-top: 0; color: var(--board-color); }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #333;
+            font-size: 1.1rem;
+            color: #ccc;
+        }
+        .winner {
+            font-size: 2rem;
+            color: var(--accent-color);
+            font-weight: bold;
+            margin-top: 25px;
+            text-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        /* 動畫 Keyframes */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+            20%, 40%, 60%, 80% { transform: translateX(4px); }
+        }
+        .shake-anim { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>圍棋 PRO</h1>
+        
+    </header>
+
+    <div class="game-container">
+        <div class="board-wrapper" id="boardContainer">
+            <canvas id="board" width="600" height="600"></canvas>
+        </div>
+
+        <div class="info-panel">
+            <div id="statusMsg" class="status-box">等待開局...</div>
+            
+            <div class="captures">
+                <div class="capture-item">
+                    <span>黑方殺敵</span>
+                    <span id="capBlack" class="capture-count">0</span>
+                </div>
+                <div class="capture-item">
+                    <span>白方殺敵</span>
+                    <span id="capWhite" class="capture-count">0</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn-pass" onclick="game.pass()">虛手 (Pass)</button>
+                <button id="btnFinish" class="btn-calc" onclick="game.initiateScoring()">雙方停手 / 點目</button>
+                <button id="btnConfirmDead" class="btn-confirm" onclick="game.calculateFinalScore()">確認並結算</button>
+                
+                
+                
+                <button class="btn-reset" onclick="game.reset()">重新開始</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <h2>最終戰績</h2>
+            <div class="score-row">
+                <span><strong>黑棋 (玩家)</strong></span>
+                <span><strong>白棋 (AI)</strong></span>
+            </div>
+            <div class="score-row">
+                <span id="resB_Territory">地: 0</span>
+                <span id="resW_Territory">地: 0</span>
+            </div>
+            <div class="score-row">
+                <span id="resB_Dead">殺敵: 0</span>
+                <span id="resW_Dead">殺敵: 0</span>
+            </div>
+            <div class="score-row">
+                <span>貼目: 0</span>
+                <span>貼目: 6.5</span>
+            </div>
+            <div class="score-row" style="font-weight:bold; font-size:1.3rem; border:none; color:var(--board-color)">
+                <span id="resB_Total">總分: 0</span>
+                <span id="resW_Total">總分: 0</span>
+            </div>
+            <div id="winnerDisplay" class="winner"></div>
+            <button onclick="game.closeModal()" style="margin-top:25px; background: #333; width: 100%;">關閉</button>
+        </div>
+    </div>
+
+<script>
+class GoGame {
+    constructor() {
+        this.canvas = document.getElementById('board');
+        this.ctx = this.canvas.getContext('2d');
+        this.size = 19;
+        this.padding = 30;
+        this.gridSize = (this.canvas.width - 2 * this.padding) / (this.size - 1);
+        
+        // 0: 空, 1: 黑活, 2: 白活, 3: 黑屍, 4: 白屍
+        this.board = [];
+        this.deadStonesMap = []; 
+        this.captures = { 1: 0, 2: 0 }; 
+        this.currentPlayer = 1; 
+        this.gameState = 'PLAY'; 
+        
+        this.setupEvents();
+        this.reset();
+    }
+
+    reset() {
+        this.board = Array(this.size).fill().map(() => Array(this.size).fill(0));
+        this.deadStonesMap = Array(this.size).fill().map(() => Array(this.size).fill(false));
+        this.captures = { 1: 0, 2: 0 };
+        this.currentPlayer = 1;
+        this.gameState = 'PLAY';
+        
+        document.getElementById('btnFinish').style.display = 'block';
+        document.getElementById('btnConfirmDead').style.display = 'none';
+        this.setStatus("輪到黑棋 (玩家)", "#e3b05b");
+        this.canvas.classList.remove('marking-mode');
+        
+        this.updateUI();
+        this.draw();
+    }
+
+    setupEvents() {
+        this.canvas.addEventListener('mousedown', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left - this.padding) / this.gridSize);
+            const y = Math.round((e.clientY - rect.top - this.padding) / this.gridSize);
+
+            if (x < 0 || x >= this.size || y < 0 || y >= this.size) return;
+
+            if (this.gameState === 'PLAY') {
+                if (this.currentPlayer === 1) {
+                    this.playMove(x, y);
+                }
+            } else if (this.gameState === 'MARK_DEAD') {
+                this.toggleManualDead(x, y);
+            }
+        });
+    }
+
+    playMove(x, y) {
+        if (this.board[y][x] !== 0) {
+            // 這裡不跳 alert 擾民，只在 console 輸出，或做個小震動
+            console.log("此處無法落子");
+            return;
+        }
+        
+        const moveResult = this.tryMove(x, y, this.currentPlayer);
+        if (!moveResult.success) {
+            if (moveResult.reason === 'suicide') alert("禁手：禁止自殺");
+            return;
+        }
+
+        this.executeMove(x, y, this.currentPlayer, moveResult);
+
+        const opponent = this.currentPlayer === 1 ? 2 : 1;
+        this.currentPlayer = opponent;
+        
+        if (this.currentPlayer === 2) {
+            this.setStatus("AI 獵殺運算中...", "#ff4757");
+            setTimeout(() => this.aiTurn(), 50);
+        } else {
+            this.setStatus("輪到黑棋 (玩家)", "#e3b05b");
+        }
+    }
+
+    executeMove(x, y, color, result) {
+        this.board[y][x] = color;
+        
+        // 殺敵動畫
+        if (result.captured.length > 0) {
+            const container = document.getElementById('boardContainer');
+            
+            void container.offsetWidth; // trigger reflow
+           
+            result.captured.forEach(pt => {
+                const currentVal = this.board[pt.y][pt.x];
+                if(currentVal === 1) this.board[pt.y][pt.x] = 3; 
+                if(currentVal === 2) this.board[pt.y][pt.x] = 4; 
+            });
+            this.captures[color] += result.captured.length;
+        }
+        
+        this.draw();
+        this.updateUI();
+    }
+
+    tryMove(x, y, color) {
+        let original = this.board[y][x];
+        this.board[y][x] = color;
+        
+        const opponent = color === 1 ? 2 : 1;
+        let captured = [];
+        let neighbors = [[0,1], [0,-1], [1,0], [-1,0]];
+        
+        neighbors.forEach(([dx, dy]) => {
+            let nx = x + dx, ny = y + dy;
+            if (this.isOnBoard(nx, ny) && this.board[ny][nx] === opponent) {
+                let group = this.getGroup(nx, ny, opponent);
+                if (group.liberties === 0) {
+                    captured.push(...group.stones);
+                }
+            }
+        });
+
+        let selfGroup = this.getGroup(x, y, color);
+        let suicide = false;
+        if (selfGroup.liberties === 0 && captured.length === 0) {
+            suicide = true;
+        }
+
+        this.board[y][x] = original;
+
+        if (suicide) return { success: false, reason: 'suicide' };
+        return { success: true, captured: captured };
+    }
+
+    // AI Logic (保持原本的瘋狗邏輯)
+    aiTurn() {
+        if (this.gameState !== 'PLAY') return;
+
+        const aiColor = 2;
+        const playerColor = 1;
+        const size = this.size;
+
+        let candidates = new Set();
+        [3,9,15].forEach(r => [3,9,15].forEach(c => {
+             if (this.board[r][c] === 0) candidates.add(`${c},${r}`);
+        }));
+
+        for(let y=0; y<size; y++){
+            for(let x=0; x<size; x++){
+                if(this.board[y][x] !== 0) { 
+                    for(let dy=-2; dy<=2; dy++){
+                        for(let dx=-2; dx<=2; dx++){
+                            let nx=x+dx, ny=y+dy;
+                            if(this.isOnBoard(nx,ny) && this.board[ny][nx] === 0) {
+                                candidates.add(`${nx},${ny}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if(candidates.size === 0) candidates.add(`9,9`);
+
+        let movesList = Array.from(candidates).map(s => {
+            let [x, y] = s.split(',').map(Number);
+            return {x, y};
+        });
+
+        let bestMove = null;
+        let bestScore = -Infinity;
+
+        for (let m of movesList) {
+            let score = this.evaluateMoveAggressive(m.x, m.y, aiColor, playerColor);
+            score += Math.random() * 10;
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = m;
+            }
+        }
+
+        if (bestMove && bestScore > -90000) {
+            const check = this.tryMove(bestMove.x, bestMove.y, aiColor);
+            if(check.success) {
+                this.executeMove(bestMove.x, bestMove.y, aiColor, check);
+            } else {
+                this.pass();
+            }
+        } else {
+            this.pass();
+        }
+        
+        this.currentPlayer = 1;
+        this.setStatus("輪到黑棋 (玩家)", "#e3b05b");
+    }
+
+    evaluateMoveAggressive(x, y, aiColor, playerColor) {
+        const result = this.tryMove(x, y, aiColor);
+        if (!result.success) return -Infinity; 
+
+        let score = 0;
+        if (result.captured.length > 0) {
+            score += 50000 * result.captured.length; 
+            if (result.captured.length >= 3) score += 100000;
+        }
+
+        this.board[y][x] = aiColor; 
+
+        let neighbors = [[0,1], [0,-1], [1,0], [-1,0]];
+        neighbors.forEach(([dx, dy]) => {
+            let nx = x + dx, ny = y + dy;
+            if (this.isOnBoard(nx, ny) && this.board[ny][nx] === playerColor) {
+                let enemyGroup = this.getGroup(nx, ny, playerColor);
+                if (enemyGroup.liberties === 1) score += 5000;
+                else if (enemyGroup.liberties === 2) score += 1000;
+                score += 200; 
+            }
+        });
+
+        let selfGroup = this.getGroup(x, y, aiColor);
+        if (selfGroup.liberties === 1) score -= 8000; 
+        else if (selfGroup.liberties === 2) score -= 100;
+        else score += selfGroup.liberties * 10;
+
+        let nearEnemy = false;
+        neighbors.forEach(([dx, dy]) => {
+            let nx = x + dx, ny = y + dy;
+            if (this.isOnBoard(nx, ny) && this.board[ny][nx] === playerColor) nearEnemy = true;
+        });
+        if (nearEnemy) score += 150;
+
+        this.board[y][x] = 0; 
+        return score;
+    }
+
+    // Helper functions
+    getGroup(sx, sy, color) {
+        let stack = [{x: sx, y: sy}];
+        let stones = [];
+        let visited = new Set();
+        let liberties = new Set();
+        visited.add(`${sx},${sy}`);
+
+        while (stack.length > 0) {
+            let {x, y} = stack.pop();
+            stones.push({x, y});
+            let dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+            for (let [dx, dy] of dirs) {
+                let nx = x + dx, ny = y + dy;
+                if (this.isOnBoard(nx, ny)) {
+                    if (this.board[ny][nx] === 0) liberties.add(`${nx},${ny}`);
+                    else if (this.board[ny][nx] === color && !visited.has(`${nx},${ny}`)) {
+                        visited.add(`${nx},${ny}`);
+                        stack.push({x: nx, y: ny});
+                    }
+                }
+            }
+        }
+        return { stones, liberties: liberties.size };
+    }
+
+    isOnBoard(x, y) { return x >= 0 && x < this.size && y >= 0 && y < this.size; }
+
+    pass() {
+        if (this.currentPlayer === 1) {
+            this.currentPlayer = 2;
+            this.setStatus("AI 思考中...", "#ff4757");
+            setTimeout(() => {
+                if (confirm("您選擇了虛手。電腦也認為沒棋可下了，是否進入點目階段？")) {
+                    this.initiateScoring();
+                } else {
+                    this.aiTurn(); 
+                }
+            }, 500);
+        }
+    }
+
+    setStatus(msg, color) {
+        const el = document.getElementById('statusMsg');
+        el.textContent = msg;
+        el.style.color = color;
+    }
+
+    updateUI() {
+        document.getElementById('capBlack').textContent = this.captures[1];
+        document.getElementById('capWhite').textContent = this.captures[2];
+    }
+
+    // ================= 繪圖邏輯 (美化版) =================
+    draw() {
+        // 1. 繪製棋盤質感 (漸層木紋底色)
+        let gradient = this.ctx.createRadialGradient(
+            this.canvas.width / 2, this.canvas.height / 2, 50,
+            this.canvas.width / 2, this.canvas.height / 2, 400
+        );
+        gradient.addColorStop(0, "#e3b05b"); // 亮部
+        gradient.addColorStop(1, "#c28e3b"); // 暗部
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // 2. 畫線 (更精細的線條)
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = "#4e342e";
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i < this.size; i++) {
+            let p = this.padding + i * this.gridSize;
+            this.ctx.moveTo(this.padding, p);
+            this.ctx.lineTo(this.canvas.width - this.padding, p);
+            this.ctx.moveTo(p, this.padding);
+            this.ctx.lineTo(p, this.canvas.height - this.padding);
+        }
+        this.ctx.stroke();
+
+        // 3. 畫星位 (帶陰影)
+        this.ctx.fillStyle = "#3e2723";
+        [3,9,15].forEach(r => [3,9,15].forEach(c => {
+            this.ctx.beginPath();
+            let sx = this.padding + c*this.gridSize;
+            let sy = this.padding + r*this.gridSize;
+            this.ctx.arc(sx, sy, 3.5, 0, 6.28);
+            this.ctx.fill();
+        }));
+
+        // 4. 畫棋子 (擬真 3D)
+        for (let y = 0; y < this.size; y++) {
+            for (let x = 0; x < this.size; x++) {
+                let val = this.board[y][x];
+                if (val !== 0) {
+                    let isMarkedDead = this.deadStonesMap[y][x];
+                    // 視覺詐欺：屍體(3,4) 與活棋(1,2) 畫法完全一樣
+                    let visualColor = (val === 3) ? 1 : (val === 4) ? 2 : val;
+                    this.drawStone3D(x, y, visualColor, isMarkedDead);
+                }
+            }
+        }
+        
+        // 點目模式提示
+        if (this.gameState === 'MARK_DEAD') {
+            this.ctx.font = "bold 20px Microsoft JhengHei";
+            this.ctx.fillStyle = "rgba(255, 71, 87, 0.9)";
+            this.ctx.textAlign = "center";
+            this.ctx.shadowColor = "black";
+            this.ctx.shadowBlur = 4;
+            this.ctx.fillText("請點擊那些「看起來活著其實死了」的殘子", this.canvas.width/2, this.canvas.height/2);
+            this.ctx.shadowBlur = 0;
+        }
+    }
+
+    drawStone3D(x, y, color, isMarkedDead) {
+        const cx = this.padding + x * this.gridSize;
+        const cy = this.padding + y * this.gridSize;
+        const r = this.gridSize * 0.46; // 稍微大一點點
+
+        // 陰影 (Drop Shadow)
+        if (!isMarkedDead) {
+            this.ctx.shadowColor = "rgba(0,0,0,0.5)";
+            this.ctx.shadowBlur = 5;
+            this.ctx.shadowOffsetX = 2;
+            this.ctx.shadowOffsetY = 2;
+        }
+
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, r, 0, 6.28);
+
+        // 3D 漸層球體效果
+        let grad = this.ctx.createRadialGradient(
+            cx - r/3, cy - r/3, r/10, 
+            cx, cy, r
+        );
+
+        if (color === 1) { // 黑子 (瑪瑙黑)
+            if (isMarkedDead) {
+                grad.addColorStop(0, "rgba(60,60,60,0.4)");
+                grad.addColorStop(1, "rgba(0,0,0,0.4)");
+            } else {
+                grad.addColorStop(0, "#666");   // 高光
+                grad.addColorStop(0.3, "#222"); // 本色
+                grad.addColorStop(1, "#000");   // 暗部
+            }
+        } else { // 白子 (雲蛤白)
+            if (isMarkedDead) {
+                grad.addColorStop(0, "rgba(255,255,255,0.4)");
+                grad.addColorStop(1, "rgba(200,200,200,0.4)");
+            } else {
+                grad.addColorStop(0, "#fff");       // 高光
+                grad.addColorStop(0.8, "#e0e0e0"); // 陰影過渡
+                grad.addColorStop(1, "#bbb");       // 邊緣陰影
+            }
+        }
+
+        this.ctx.fillStyle = grad;
+        this.ctx.fill();
+        
+        // 重置陰影設定，避免影響其他繪圖
+        this.ctx.shadowColor = "transparent";
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowOffsetX = 0;
+        this.ctx.shadowOffsetY = 0;
+
+        // 點目模式標記 (紅圈)
+        if (isMarkedDead) {
+            this.ctx.beginPath();
+            this.ctx.strokeStyle = "#ff4757";
+            this.ctx.lineWidth = 3;
+            this.ctx.arc(cx, cy, r/2, 0, 6.28);
+            this.ctx.stroke();
+        }
+    }
+
+    initiateScoring() {
+        this.gameState = 'MARK_DEAD';
+        this.setStatus("請點擊盤面上的死子", "#ff4757");
+        document.getElementById('btnFinish').style.display = 'none';
+        document.getElementById('btnConfirmDead').style.display = 'block';
+        this.canvas.classList.add('marking-mode');
+        this.draw();
+        alert("【點目模式】\n\n點擊「看起來活著但其實死了」的殘子。\n\n(屍體會自動計算，不用點)");
+    }
+
+    toggleManualDead(x, y) {
+        let val = this.board[y][x];
+        if (val === 1 || val === 2) {
+            this.deadStonesMap[y][x] = !this.deadStonesMap[y][x];
+            this.draw();
+        }
+    }
+
+    calculateFinalScore() {
+        let finalBoard = this.board.map(row => [...row]);
+        let extraBlackCaptures = 0;
+        let extraWhiteCaptures = 0;
+
+        // 1. 處理手動標記
+        for(let y=0; y<this.size; y++){
+            for(let x=0; x<this.size; x++){
+                if(this.deadStonesMap[y][x]) {
+                    const color = finalBoard[y][x];
+                    finalBoard[y][x] = 0; 
+                    if (color === 1) extraWhiteCaptures++; 
+                    else extraBlackCaptures++; 
+                }
+            }
+        }
+
+        let blackTerritory = 0;
+        let whiteTerritory = 0;
+        let visited = new Set();
+
+        // 2. 數地
+        for(let y=0; y<this.size; y++){
+            for(let x=0; x<this.size; x++){
+                if(finalBoard[y][x] === 0 && !visited.has(`${x},${y}`)) {
+                    let q = [{x, y}];
+                    visited.add(`${x},${y}`);
+                    let touchBlack = false;
+                    let touchWhite = false;
+                    let count = 0;
+
+                    while(q.length){
+                        let curr = q.pop();
+                        count++;
+                        let dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+                        for(let [dx, dy] of dirs){
+                            let nx = curr.x+dx, ny = curr.y+dy;
+                            if(nx>=0 && nx<this.size && ny>=0 && ny<this.size){
+                                let val = finalBoard[ny][nx];
+                                if(val === 0){
+                                    if(!visited.has(`${nx},${ny}`)){
+                                        visited.add(`${nx},${ny}`);
+                                        q.push({x:nx, y:ny});
+                                    }
+                                } else if (val === 1) touchBlack = true;
+                                else if (val === 2) touchWhite = true;
+                            }
+                        }
+                    }
+                    if(touchBlack && !touchWhite) blackTerritory += count;
+                    if(!touchBlack && touchWhite) whiteTerritory += count;
+                }
+            }
+        }
+
+        const komi = 6.5;
+        const totalBlack = blackTerritory + this.captures[1] + extraBlackCaptures;
+        const totalWhite = whiteTerritory + this.captures[2] + extraWhiteCaptures + komi;
+
+        document.getElementById('resB_Territory').textContent = `地: ${blackTerritory}`;
+        document.getElementById('resW_Territory').textContent = `地: ${whiteTerritory}`;
+        document.getElementById('resB_Dead').textContent = `殺敵: ${this.captures[1] + extraBlackCaptures}`;
+        document.getElementById('resW_Dead').textContent = `殺敵: ${this.captures[2] + extraWhiteCaptures}`;
+        document.getElementById('resB_Total').textContent = `總分: ${totalBlack}`;
+        document.getElementById('resW_Total').textContent = `總分: ${totalWhite}`;
+
+        const winMsg = document.getElementById('winnerDisplay');
+        if (totalBlack > totalWhite) {
+            winMsg.textContent = `黑棋勝 ${totalBlack - totalWhite} 目`;
+        } else {
+            winMsg.textContent = `白棋勝 ${totalWhite - totalBlack} 目`;
+        }
+
+        const modal = document.getElementById('resultModal');
+        modal.style.display = 'flex';
+        // 延遲添加 show class 觸發動畫
+        setTimeout(() => modal.classList.add('show'), 10);
+        
+        this.gameState = 'FINISHED';
+        this.canvas.classList.remove('marking-mode');
+    }
+
+    closeModal() {
+        const modal = document.getElementById('resultModal');
+        modal.classList.remove('show');
+        setTimeout(() => modal.style.display = 'none', 300);
+    }
+}
+
+const game = new GoGame();
+</script>
+</body>
+</html>
